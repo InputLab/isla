@@ -83,7 +83,7 @@ def csv_lint(tree: isla.derivation_tree.DerivationTree) -> Union[bool, str]:
         tmp.write(str(tree).encode())
         tmp.flush()
         # csvlint from https://github.com/Clever/csvlint/releases
-        cmd = ["csvlint", "-delimiter", ";", tmp.name]
+        cmd = ["/Users/kuznetsov/inputlab/workspace/isla/csvlint", "-delimiter", ";", tmp.name]
         process = subprocess.Popen(cmd, stderr=subprocess.PIPE)
         (stdout, stderr) = process.communicate()
         exit_code = process.wait()

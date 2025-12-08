@@ -131,7 +131,7 @@ class Mutator:
                         and tree_1.value == tree_2.value
                     ]
                 ),
-                exceptions=(IndexError,),
+                # exceptions=(IndexError,),
             )()
             .map(process)
             .map(Some)
