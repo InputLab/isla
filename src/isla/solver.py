@@ -459,9 +459,9 @@ class ISLaSolver:
         # one has to manually install a newer version and ignore the warning.
 
         z3_version =  metadata.version("z3-solver")
-        assert version.parse(z3_version) >= version.parse("4.8.13.0"), (
-            f"ISLa requires at least z3 4.8.13.0, present: {z3_version}. "
-            "Please install a newer z3 version, e.g., using 'pip install z3-solver==4.8.14.0'."
+        assert version.parse(z3_version) >= version.parse("4.15"), (
+            f"ISLa requires at least z3 >=4.15, present: {z3_version}. "
+            "Please install a newer z3 version, e.g., using 'pip install z3-solver==4.15...'."
         )
 
         if isinstance(grammar, str):
@@ -852,7 +852,7 @@ class ISLaSolver:
                             initial_tree=Some(tree),
                             timeout_seconds=Some(fix_timeout_seconds),
                         ).solve,
-                        (UnknownResultError, TimeoutError, StopIteration),
+                        # (UnknownResultError, TimeoutError, StopIteration),
                     )()
                 )
 
@@ -4137,7 +4137,8 @@ def implies(
     )
 
     return (
-        safe(solver.solve, exceptions=(StopIteration,))()
+        # safe(solver.solve, exceptions=(StopIteration,))()
+        safe(solver.solve)()
         .map(lambda _: False)
         .lash(lambda _: Success(True))
     ).unwrap()

@@ -83,6 +83,9 @@ def evaluate_z3_expression(
     def not_implemented_failure(_=Nothing) -> Failure[NotImplementedError]:
         logger = logging.getLogger("Z3 evaluation")
         logger.debug("Evaluation of expression %s not implemented.", expr)
+        kind = expr.decl().kind()
+        name = expr.decl().name()
+        logger.debug(f"Missing Python implementation for Z3 operator: {name} ({kind}).")
         return Failure(
             NotImplementedError(f"Evaluation of expression {expr} not implemented.")
         )
@@ -135,6 +138,11 @@ def evaluate_z3_expression(
                     evaluate_z3_seq_at,
                     evaluate_z3_seq_extract,
                     evaluate_z3_str_to_code,
+                    # REFACTORED
+                    evaluate_z3_seq_replace,
+                    evaluate_z3_seq_index,
+                    evaluate_z3_seq_prefix,
+                    evaluate_z3_seq_suffix,
                     # Fallback
                     not_implemented_failure,
                 ],
@@ -149,7 +157,7 @@ def evaluate_z3_string_value(expr: z3.ExprRef, _) -> Maybe[Z3EvalResult]:
     if not z3.is_string_value(expr):
         return Nothing
     expr: z3.StringVal
-    return Some(((), expr.as_string().replace(r"\u{}", "\x00")))
+    return Some(((), expr.as_string().replace(r"\u{0}", "\x00")))
 
 
 def evaluate_z3_int_value(expr: z3.ExprRef, _) -> Maybe[Z3EvalResult]:
@@ -183,11 +191,13 @@ def evaluate_z3_str_to_int(
     def constructor(args):
         assert len(args) == 1
         c = args[0]
+        if not c:
+           return -1 # Standard SMT-LIB behavior for empty string
         try:
             return int(c)
         except ValueError:
             try:
-                return int(float(c))
+                return int(float(c)) # or d = Decimal(c)
             except ValueError:
                 raise DomainError(
                     f"Expression {children_results[0]} cannot be converted to int."
@@ -562,6 +572,51 @@ def evaluate_z3_str_to_code(
         )
     )
 
+def evaluate_z3_seq_replace(
+    expr: z3.ExprRef, children_results: Tuple[Z3EvalResult, ...]
+) -> Maybe[Z3EvalResult]:
+    if expr.decl().kind() != z3.Z3_OP_SEQ_REPLACE:
+        return Nothing
+
+    return Some(
+        construct_result(
+            lambda args: cast(str, args[0]).replace(cast(str, args[1]), cast(str, args[2]), 1),
+            children_results,
+        )
+    )
+
+
+def evaluate_z3_seq_index(
+    expr: z3.ExprRef, children_results: Tuple[Z3EvalResult, ...]
+) -> Maybe[Z3EvalResult]:
+    if expr.decl().kind() != z3.Z3_OP_SEQ_INDEX:
+        return Nothing
+
+    def _index_of(args):
+        s, sub, offset = cast(str, args[0]), cast(str, args[1]), cast(int, args[2])
+        if offset < 0 or offset >= len(s):
+            return -1
+        return s.find(sub, offset)
+
+    return Some(construct_result(_index_of, children_results))
+
+
+def evaluate_z3_seq_prefix(
+    expr: z3.ExprRef, children_results: Tuple[Z3EvalResult, ...]
+) -> Maybe[Z3EvalResult]:
+    if expr.decl().kind() != z3.Z3_OP_SEQ_PREFIX:
+        return Nothing
+    return Some(construct_result(lambda args: cast(str, args[1]).startswith(cast(str, args[0])), children_results))
+
+
+def evaluate_z3_seq_suffix(
+    expr: z3.ExprRef, children_results: Tuple[Z3EvalResult, ...]
+) -> Maybe[Z3EvalResult]:
+    if expr.decl().kind() != z3.Z3_OP_SEQ_SUFFIX:
+        return Nothing
+    return Some(construct_result(lambda args: cast(str, args[1]).endswith(cast(str, args[0])), children_results))
+
+
 
 def construct_result(
     constructor: Callable[[Tuple[bool | int | str, ...]], bool | int | str],
@@ -880,7 +935,7 @@ def smt_string_val_to_string(smt_val: z3.StringVal) -> str:
     :return: The Python string representation of `smt_val`.
     """
 
-    return smt_val.as_string().replace(r"\u{}", "\x00")
+    return smt_val.as_string().replace(r"\u{0}", "\x00")
 
 
 def parent_relationships_in_z3_expr(
