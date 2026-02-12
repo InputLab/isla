@@ -19,7 +19,6 @@
 import copy
 import functools
 import heapq
-import importlib.metadata
 import itertools
 import logging
 import math
@@ -43,7 +42,7 @@ from typing import (
     Sequence,
 )
 
-import pkg_resources
+from importlib import metadata
 import z3
 from grammar_graph import gg
 from grammar_graph.gg import GrammarGraph
@@ -459,9 +458,9 @@ class ISLaSolver:
         # currently since the fuzzingbook library inflexibly binds z3 to 4.8.8.0. Thus,
         # one has to manually install a newer version and ignore the warning.
 
-        z3_version = importlib.metadata.version("z3-solver")
-        assert version.parse(z3_version) >= version.parse("4.8.13.0"), (
-            f"ISLa requires at least z3 >4.15, present: {z3_version}. "
+        z3_version =  metadata.version("z3-solver")
+        assert version.parse(z3_version) >= version.parse("4.15"), (
+            f"ISLa requires at least z3 >=4.15, present: {z3_version}. "
             "Please install a newer z3 version, e.g., using 'pip install z3-solver==4.15...'."
         )
 
